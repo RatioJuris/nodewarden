@@ -107,6 +107,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const method = request.method;
   const clientId = getClientIdentifier(request);
 
+// Text-only deployment: disable all binary attachment and Send-file operations.
+  function isAttachmentOrFileRequest(path: string): boolean {
+    return (
+      /^\/api\/attachments(?:\/|$)/i.test(path) ||
+      /^\/api\/ciphers\/[a-f0-9-]+\/attachment(?:\/|$)/i.test(path) ||
+      path === '/api/sends/file/v2' ||
+      /^\/api\/sends\/[^/]+\/file(?:\/|$)/i.test(path) ||
+      /^\/api\/sends\/[^/]+\/access\/file(?:\/|$)/i.test(path) ||
+      /^\/api\/sends\/access\/file(?:\/|$)/i.test(path) ||
+      /^\/api\/sends\/[^/]+\/[^/]+\/?$/i.test(path)
+    );
+  }
+
+  if (isAttachmentOrFileRequest(path)) {
+    return errorResponse('Not found', 404);
+  }
+  
   async function enforcePublicRateLimit(
     category: string = 'public',
     maxRequests: number = LIMITS.rateLimit.publicRequestsPerMinute
